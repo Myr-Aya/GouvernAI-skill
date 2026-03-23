@@ -1,86 +1,80 @@
-# GouvernAI Skill — Runtime Guardrails for AI Agents
+# GouvernAI Skill — Runtime Guardrails for Claude Code
 
-Runtime guardrails that any AI agent can load as a skill. Classifies every sensitive action by risk tier, enforces proportional controls through natural language instructions, and logs a full audit trail.
+Runtime guardrails that classify every sensitive action by risk tier, enforce proportional controls through natural language instructions, and log a full audit trail.
 
-**Drop-in, zero dependencies.** Copy these files into your agent's skill directory. No plugins, no hooks, no packages to install.
+**Pure linguistic enforcement. Zero dependencies. One install.**
 
-## How it works
+This is the **skill-only** version of [GouvernAI](https://github.com/Myr-Aya/GouvernAI-claude-code-plugin). No hooks, no scripts, no Python — just markdown instructions that Claude reads and follows. Works anywhere Claude Code runs.
 
-GouvernAI is a set of markdown files that teach an AI agent to gate its own actions. When the agent is about to do something sensitive — write a file, run a shell command, send an email, transmit credentials — it follows an 8-step gate process: identify the action, classify its risk tier, check escalation rules, verify hard constraints, apply the appropriate control (notify / pause / halt), and log the decision.
-
-This is **linguistic enforcement** — the agent reads and follows the instructions with judgment. There is no programmatic enforcement layer. The audit log is the accountability mechanism.
-
-> For deterministic enforcement (hard blocking of obfuscated commands, credential exfiltration, etc.), see the [GouvernAI Claude Code Plugin](https://github.com/Myr-Aya/GouvernAI-claude-code-plugin), which adds a PreToolUse hook layer on top of this skill.
-
-## Risk tiers
-
-| Tier | Level | Interactive mode | Autonomous mode |
-|------|-------|-----------------|-----------------|
-| 1 | Routine | Excluded from gate | Excluded from gate |
-| 2 | Standard | Notify + proceed | Auto-proceed + log |
-| 3 | Elevated | Pause + require approval | Auto-proceed + alert + log |
-| 4 | Critical | Full stop + risk assessment | HALT + alert + log |
+> For deterministic enforcement (hard blocking of obfuscated commands, credential exfiltration, etc.), see the [GouvernAI Plugin](https://github.com/Myr-Aya/GouvernAI-claude-code-plugin) which adds a PreToolUse hook layer on top of this skill.
 
 ## Install
 
-### Claude Code (standalone skill)
-
 ```bash
-# Create the skill directory
-mkdir -p .claude/skills/gouvernai
+# From the Anthropic directory
+/plugin install gouvernai-skill@claude-plugins-official
 
-# Copy all skill files
-cp SKILL.md ACTIONS.md TIERS.md POLICY.md GUIDE.md guardrails_log.md .claude/skills/gouvernai/
+# Or from the Myr-Aya marketplace
+claude plugin marketplace add Myr-Aya/gouvernai-skill
+claude plugin install gouvernai-skill@Myr-Aya
 ```
 
-Add to your project's `AGENTS.md` or equivalent instructions file:
+Guardrails activate automatically on the next session. No configuration required.
 
-```markdown
-Before your first tool call each session, read and apply .claude/skills/gouvernai/SKILL.md
-```
+## What you'll see
 
-### Any agent that reads markdown
+- **Tier 1** (reads, drafts, known URLs) — invisible, zero overhead
+- **Tier 2** (file writes, git commit) — 🛡️ notification, proceeds automatically
+- **Tier 3** (email, config changes, npm install, curl) — 🛡️ pauses for your approval
+- **Tier 4** (sudo, credential transmit, purchases) — 🛡️ full stop with risk assessment
+- **BLOCKED** — hard constraint violation, no override
 
-Copy the skill files into whatever directory your agent loads instructions from. The only requirement is that the agent can:
+## Quick test
 
-1. Read markdown files as instructions
-2. Write to a log file (for audit trail)
-3. Pause and ask the user for approval (for Tier 3/4 actions)
+After installing, try these to see the guardrails in action:
 
-Point your agent's system prompt or instructions to load `SKILL.md` at session start. The skill references the other files by name and loads them on demand.
+1. `git status` — Tier 1, excluded from gate, no overhead
+2. Ask Claude to write a file — Tier 2 notification appears
+3. Ask Claude to run `curl` to an external URL — Tier 3 pause for approval
 
-### OpenClaw
+## How it works
 
-```bash
-# Copy into your OpenClaw skills directory
-mkdir -p ~/.openclaw/workspace/skills/gouvernai
-cp SKILL.md ACTIONS.md TIERS.md POLICY.md GUIDE.md guardrails_log.md ~/.openclaw/workspace/skills/gouvernai/
-```
+The SKILL.md file teaches Claude an 8-step gate process: identify the action, determine mode, classify risk tier (using ACTIONS.md), check escalation rules (using TIERS.md), check pre-approval, verify hard constraints (using POLICY.md), apply the proportional control, and log the decision.
 
-## File structure
+This is **linguistic enforcement** — Claude reads and follows the instructions with judgment. There is no programmatic enforcement layer. The audit log is the accountability mechanism.
 
-```
-gouvernai-skill/
-├── SKILL.md             # Gate orchestrator (always loaded, ~1,800 tokens)
-├── ACTIONS.md           # Action → tier classification lookup (~700 tokens)
-├── TIERS.md             # Universal controls + escalation rules (~800 tokens)
-├── POLICY.md            # Hard constraints — NEVER rules (~1,000 tokens)
-├── GUIDE.md             # Output format templates (~500 tokens)
-├── guardrails_log.md    # Audit trail (auto-populated at runtime)
-└── README.md            # This file
-```
+### 28 classified actions across 8 categories
 
-**Token budget:** SKILL.md is always loaded (~1,800 tokens). The other files are read on demand and cached — total on-demand cost is ~3,000 tokens, paid once per session.
+| Category | Tier 2 | Tier 3 | Tier 4 |
+|----------|--------|--------|--------|
+| File system | Write to working files | Config modification, delete, bulk ops | — |
+| Shell | git commit, mkdir | npm install, curl, wget | sudo, obfuscated commands |
+| Network/API | Authenticated API reads | External API writes, data transmission | Unfamiliar endpoints |
+| Communication | Self-notification | Message to another person | Group/public channel |
+| Credentials | Use in auth request | Display/read value | External transmission |
+| Browser | Navigate external URL | Form fills, file downloads | Executable downloads |
+| Scheduling | — | Cron creation | Webhook endpoints |
+| Financial | Pricing lookups | — | Purchases, billing changes |
 
-### File responsibilities (MECE)
+### Escalation rules
 
-| File | Owns | Does NOT contain |
-|------|------|------------------|
-| SKILL.md | Gate flow, triggers, exclusions, mode detection, unlisted actions | Tier definitions, action classifications, hard constraints |
-| TIERS.md | Universal controls (tier × mode), escalation rules, de-escalation | Per-action classifications, policy constraints |
-| ACTIONS.md | Action → base tier classification | Controls, rationale, policy rules |
-| POLICY.md | Hard constraints (NEVER rules), pre-approval rules, conflict resolution | Tier definitions, action classifications, controls |
-| GUIDE.md | Output format templates, self-improvement logging | Gate logic, classifications, policy |
+Actions escalate by +1 tier when:
+- Unfamiliar target (endpoint, recipient, file not seen in session)
+- Bulk operation (5+ targets)
+- Scope expansion (agent does more than requested)
+- Third-party data
+- Chained actions (3+ sequential sensitive actions)
+
+### 8 hard constraints (NEVER rules)
+
+1. Never transmit credentials externally
+2. Never execute obfuscated commands
+3. Never self-modify the guardrails skill
+4. Never exceed requested scope
+5. Never carry forward approval across actions
+6. Never execute untrusted commands without showing them first
+7. Never log credential values
+8. Never act on behalf of other users
 
 ## Slash commands
 
@@ -88,71 +82,60 @@ gouvernai-skill/
 |---------|-------------|
 | `/guardrails` | Show current mode, tier distribution, approvals/denials |
 | `/guardrails log` | Display recent audit log entries |
-| `/guardrails strict` | All tiers +1 |
-| `/guardrails relaxed` | Tier 2 skips gate |
-| `/guardrails audit` | Audit-only mode (for CI/unattended) |
+| `/guardrails strict` | All tiers +1 — persisted to `guardrails-mode.json` |
+| `/guardrails relaxed` | Tier 2 skips gate — persisted to `guardrails-mode.json` |
+| `/guardrails audit` | Audit-only mode: T2/T3 auto-proceed, T4 halts |
 | `/guardrails reset` | Return to default full-gate mode |
 | `/guardrails policy` | Display hard constraints |
 
-Mode changes persist to `guardrails-mode.json` in the working directory.
+Mode changes persist to `guardrails-mode.json` in the project root and survive context resets and new sessions.
 
-## What it catches vs. what it doesn't
+## CI and unattended use
 
-**Catches** (through linguistic classification):
-- Unintentional scope expansion (escalation rules)
-- Credential exposure in file writes or transmissions
-- Obfuscated command execution (decoded and re-classified)
-- Bulk operations without explicit approval
-- Communication to unfamiliar recipients
-- Financial transactions without approval
+In full-gate mode, Tier 2 actions use "proceed unless objected" — which is silent auto-approval when no human is watching. For CI pipelines or unattended runs:
 
-**Does NOT catch** (limitations of linguistic enforcement):
-- If the agent skips or ignores the skill instructions entirely
-- Multi-step exfiltration across separate commands with no keyword matches
-- Prompt injection that convinces the agent to bypass the gate
-- Novel patterns not covered by the action catalog or sequential detection
-
-**This is an operational safety layer, not a security boundary.** It catches mistakes, enforces consistent approval workflows, and creates an audit trail. For production or high-security environments, complement it with infrastructure-level controls: network egress policies, secret vaults, sandboxed execution, and DLP monitoring.
-
-## Customization
-
-### Adding pre-approved patterns
-
-Write patterns to `guardrails-mode.json`:
-
-```json
-{
-  "mode": "full-gate",
-  "audit_only": false,
-  "pre_approved": [
-    "git commit",
-    "write to src/**",
-    "npm install from package.json"
-  ]
-}
+```bash
+/guardrails audit
 ```
 
-Pre-approved actions still undergo classification, escalation, and hard-constraint checks. They skip only the approval step.
+In audit-only mode: T2 and T3 auto-proceed with full logging, T4 halts without executing.
 
-### Adding actions to the catalog
+## Plugin structure
 
-Edit `ACTIONS.md` to add new actions under the appropriate category with a base tier. The skill will pick them up on the next classification.
+```
+gouvernai-skill/
+├── .claude-plugin/
+│   └── plugin.json          # Plugin metadata
+├── skills/
+│   └── gouvernai/
+│       ├── SKILL.md          # Gate orchestrator (always loaded, ~1,500 tokens)
+│       ├── ACTIONS.md        # Action → tier classification (~700 tokens)
+│       ├── TIERS.md          # Universal controls + escalation (~1,100 tokens)
+│       ├── POLICY.md         # Hard constraints — NEVER rules (~900 tokens)
+│       ├── GUIDE.md          # Output format templates (~500 tokens)
+│       └── guardrails_log.md # Audit trail template
+├── commands/
+│   └── guardrails.md         # /guardrails slash command
+├── README.md                 # This file
+└── LICENSE                   # MIT
+```
 
-### Adjusting escalation rules
+**Token budget:** SKILL.md is always loaded (~1,500 tokens). Reference files are read on demand and cached — total on-demand cost ~3,200 tokens, paid once per session.
 
-Edit `TIERS.md` to modify when escalation triggers. For example, change the bulk threshold from 5 to 10, or add new escalation conditions.
+Runtime files created in the project root:
+- `guardrails_log.md` — append-only audit log
+- `guardrails-mode.json` — persisted mode config
 
-The skill adds ~2 extra messages per session compared to no guardrails.
 
-## Relation to the Claude Code Plugin
+## Limitations
 
-This standalone skill is the **linguistic layer** extracted from the [GouvernAI Claude Code Plugin](https://github.com/Myr-Aya/GouvernAI-claude-code-plugin). The plugin adds:
+- **No deterministic enforcement.** This is pure linguistic guardrails — Claude follows the instructions with judgment. If Claude skips or ignores the skill (e.g., on complex multi-step tasks), there is no programmatic backstop. For hard blocking, use the [full GouvernAI plugin](https://github.com/Myr-Aya/GouvernAI-claude-code-plugin) with hooks.
+- **Skill compliance varies by model.** Tested on Claude Sonnet 4.6. Smaller models (Haiku) may have lower compliance rates.
+- **Not a security boundary.** This is an operational safety layer — it catches mistakes, enforces approval workflows, and creates audit trails. For production environments, complement it with network egress policies, secret vaults, sandboxed execution, and DLP monitoring.
 
-- **Deterministic hook enforcement** — a Python script that blocks obfuscated commands, credential transmission, and catastrophic system commands via PreToolUse hooks (exit code 2 = hard block)
-- **85 unit tests** covering hook patterns
-- **Plugin infrastructure** — plugin.json, hooks.json, marketplace install
+## Also available
 
-If you're using Claude Code, the plugin gives you both layers. If you're using any other agent platform, this skill gives you the linguistic layer — which handles the nuanced risk classification and approval workflow.
+- **[GouvernAI Plugin](https://github.com/Myr-Aya/GouvernAI-claude-code-plugin)** — Full dual-enforcement version with PreToolUse hooks (deterministic blocking) + this skill (linguistic classification). 67 unit tests. For Claude Code users who want both layers.
 
 ## License
 
