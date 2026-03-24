@@ -11,7 +11,7 @@
       "name": "gouvernai-skill",
       "description": "Runtime guardrails skill for Claude Code. Classifies every sensitive action by risk tier, enforces proportional controls (notify / approve / halt), and logs a full audit trail. Pure linguistic enforcement — zero dependencies, no hooks.",
       "version": "0.1.0",
-      "source": "./gouvernai",
+      "source": "./gouvernai-skill",
       "tags": ["security", "guardrails", "governance"],
       "category": "security"
     }
