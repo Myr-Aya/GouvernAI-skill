@@ -123,16 +123,6 @@ Runtime files created in the project root:
 - `guardrails_log.md` — append-only audit log
 - `guardrails-mode.json` — persisted mode config
 
-## Cost
-
-Based on measured data from GouvernAI testing (Claude Sonnet 4.6, March 2026):
-
-| Metric | Value |
-|--------|-------|
-| Per gated action (recurring) | ~$0.005 |
-| Session setup (one-time cache) | ~$0.07 |
-| Tier 1 actions (60% of typical usage) | $0.000 |
-
 ## Limitations
 
 - **No deterministic enforcement.** This is pure linguistic guardrails — Claude follows the instructions with judgment. If Claude skips or ignores the skill (e.g., on complex multi-step tasks), there is no programmatic backstop. For hard blocking, use the [full GouvernAI plugin](https://github.com/Myr-Aya/GouvernAI-claude-code-plugin) with hooks.
