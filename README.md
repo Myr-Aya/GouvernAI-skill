@@ -137,6 +137,6 @@ Runtime files created in the project root:
 
 MIT — see [LICENSE](LICENSE)
 
-## Built by Myr-Aya
+**Website:** [gouvernai.ai](https://gouvernai.ai)
 
-[MindXO](https://mind-xo.com) — translating AI policy frameworks into operational guardrails systems.
+## Built by Myr-Aya, MindXO
