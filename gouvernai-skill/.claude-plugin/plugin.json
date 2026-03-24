@@ -1,0 +1,19 @@
+{
+  "name": "gouvernai-skill",
+  "version": "0.1.0",
+  "description": "Runtime guardrails skill for Claude Code. Classifies every sensitive action by risk tier, enforces proportional controls (notify / approve / halt), and logs a full audit trail. Pure linguistic enforcement — zero dependencies, no hooks.",
+  "author": {
+    "name": "Myr-Aya"
+  },
+  "repository": "https://github.com/Myr-Aya/gouvernai-skill",
+  "homepage": "https://gouvernai.ai",
+  "license": "MIT",
+  "keywords": [
+    "guardrails",
+    "safety",
+    "governance",
+    "risk-classification",
+    "audit-trail",
+    "security"
+  ]
+}
