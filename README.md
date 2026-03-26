@@ -1,6 +1,8 @@
 # GouvernAI Skill — Runtime Guardrails for Claude Code
 
-Runtime guardrails that classify every sensitive action by risk tier, enforce proportional controls through natural language instructions, and log a full audit trail.
+> Permissive where risk is low. Conservative where it matters. Invisible everywhere else.
+
+Runtime guardrails that preserve your flow state — reads, drafts, and routine writes flow through with zero friction. Guardrails only activate when actions carry real risk.
 
 **Pure linguistic enforcement. Zero dependencies. One install.**
 
@@ -10,9 +12,9 @@ This is the **skill-only** version of [GouvernAI](https://github.com/Myr-Aya/Gou
 
 ## Install
 
-```bash
-# From marketplace
-claude plugin marketplace add Myr-Aya/GouvernAI-claude-code-plugin
+```
+# Add as a standalone marketplace
+claude plugin marketplace add Myr-Aya/GouvernAI-skill
 claude plugin install gouvernai-skill@mindxo
 ```
 
@@ -20,11 +22,15 @@ Guardrails activate automatically on the next session. No configuration required
 
 ## What you'll see
 
-- **Tier 1** (reads, drafts, known URLs) — invisible, zero overhead
-- **Tier 2** (file writes, git commit) — 🛡️ notification, proceeds automatically
-- **Tier 3** (email, config changes, npm install, curl) — 🛡️ pauses for your approval
-- **Tier 4** (sudo, credential transmit, purchases) — 🛡️ full stop with risk assessment
-- **BLOCKED** — hard constraint violation, no override
+~60% of typical agent actions are reads, drafts, and navigation — all excluded from the gate. Zero overhead, zero prompts, zero friction. When risk is real, GouvernAI steps in proportionally:
+
+| Risk | Actions | Your experience |
+|------|---------|-----------------|
+| **T1** | reads, drafts, git status | Invisible. Flow state preserved. |
+| **T2** | file writes, git commit | Brief notification, keeps going. |
+| **T3** | npm install, curl, email, config | Pauses for approval — only when consequences are real. |
+| **T4** | sudo, credential transmit, bulk delete | Full stop with risk assessment — because it should. |
+| **BLOCKED** | hard constraint violation | No override. |
 
 ## Quick test
 
@@ -33,6 +39,18 @@ After installing, try these to see the guardrails in action:
 1. `git status` — Tier 1, excluded from gate, no overhead
 2. Ask Claude to write a file — Tier 2 notification appears
 3. Ask Claude to run `curl` to an external URL — Tier 3 pause for approval
+
+## Complements Claude Code's auto mode
+
+GouvernAI works alongside Claude Code's built-in permission modes, including auto mode. What it adds on top:
+
+| Auto mode | GouvernAI Skill |
+|-----------|-----------------|
+| Binary allow/block | 4-tier proportional controls |
+| Opaque classifier | Transparent, editable policy files you own |
+| No audit trail | Append-only log with tier, escalation, outcome |
+| No configurable modes | strict / relaxed / audit-only, persistent across sessions |
+| No escalation rules | Unfamiliar targets, bulk ops, scope expansion, chained actions |
 
 ## How it works
 
@@ -56,6 +74,7 @@ This is **linguistic enforcement** — Claude reads and follows the instructions
 ### Escalation rules
 
 Actions escalate by +1 tier when:
+
 - Unfamiliar target (endpoint, recipient, file not seen in session)
 - Bulk operation (5+ targets)
 - Scope expansion (agent does more than requested)
@@ -69,7 +88,7 @@ Actions escalate by +1 tier when:
 3. Never self-modify the guardrails skill
 4. Never exceed requested scope
 5. Never carry forward approval across actions
-6. Never execute untrusted commands without showing them first
+6. Never execute untrusted skill commands without showing them
 7. Never log credential values
 8. Never act on behalf of other users
 
@@ -85,53 +104,42 @@ Actions escalate by +1 tier when:
 | `/guardrails reset` | Return to default full-gate mode |
 | `/guardrails policy` | Display hard constraints |
 
-Mode changes persist to `guardrails-mode.json` in the project root and survive context resets and new sessions.
+Mode changes persist to `guardrails-mode.json` — they survive context resets and new sessions.
 
-## CI and unattended use
+## Skill vs Plugin — which to use?
 
-In full-gate mode, Tier 2 actions use "proceed unless objected" — which is silent auto-approval when no human is watching. For CI pipelines or unattended runs:
+| | GouvernAI Skill (this repo) | GouvernAI Plugin |
+|---|---|---|
+| Enforcement | Linguistic (probabilistic) | Linguistic + deterministic hooks |
+| Hard blocking | Claude follows NEVER rules with judgment | Python hooks block via exit code 2, no override |
+| Dependencies | None — pure markdown | Python 3.9+ |
+| Best for | Quick setup, any environment | Higher-risk workflows, CI, teams needing hard enforcement |
 
-```bash
-/guardrails audit
-```
+For most users, **start with the skill**. If you need deterministic hard blocks that Claude can't bypass, upgrade to the [full plugin](https://github.com/Myr-Aya/GouvernAI-claude-code-plugin).
 
-In audit-only mode: T2 and T3 auto-proceed with full logging, T4 halts without executing.
+## Limitations
+
+- **Linguistic enforcement is probabilistic.** Claude follows the instructions with judgment but may skip classification on complex tasks. There is no programmatic backstop in the skill-only version.
+- **Skill compliance varies by model.** Tested on Claude Sonnet 4.6. Smaller models may have lower compliance rates.
+- **No MCP interception.** MCP tool calls are classified by the skill layer but have no deterministic enforcement.
 
 ## Plugin structure
 
 ```
 gouvernai-skill/
 ├── .claude-plugin/
-│   └── plugin.json          # Plugin metadata
-├── skills/
-│   └── gouvernai/
-│       ├── SKILL.md          # Gate orchestrator (always loaded, ~1,500 tokens)
-│       ├── ACTIONS.md        # Action → tier classification (~700 tokens)
-│       ├── TIERS.md          # Universal controls + escalation (~1,100 tokens)
-│       ├── POLICY.md         # Hard constraints — NEVER rules (~900 tokens)
-│       ├── GUIDE.md          # Output format templates (~500 tokens)
-│       └── guardrails_log.md # Audit trail template
-├── commands/
-│   └── guardrails.md         # /guardrails slash command
-├── README.md                 # This file
-└── LICENSE                   # MIT
+│   └── plugin.json              # Plugin metadata
+├── gouvernai-skill/
+│   └── skills/
+│       └── gouvernai/
+│           ├── SKILL.md         # Gate orchestrator (always loaded)
+│           ├── ACTIONS.md       # Action → tier classification lookup
+│           ├── TIERS.md         # Universal controls + escalation rules
+│           ├── POLICY.md        # Hard constraints (NEVER rules)
+│           └── GUIDE.md         # Output format templates
+├── guardrails_log.md            # Audit trail (auto-created at runtime)
+└── README.md
 ```
-
-**Token budget:** SKILL.md is always loaded (~1,500 tokens). Reference files are read on demand and cached — total on-demand cost ~3,200 tokens, paid once per session.
-
-Runtime files created in the project root:
-- `guardrails_log.md` — append-only audit log
-- `guardrails-mode.json` — persisted mode config
-
-## Limitations
-
-- **No deterministic enforcement.** This is pure linguistic guardrails — Claude follows the instructions with judgment. If Claude skips or ignores the skill (e.g., on complex multi-step tasks), there is no programmatic backstop. For hard blocking, use the [full GouvernAI plugin](https://github.com/Myr-Aya/GouvernAI-claude-code-plugin) with hooks.
-- **Skill compliance varies by model.** Tested on Claude Sonnet 4.6. Smaller models (Haiku) may have lower compliance rates.
-- **Not a security boundary.** This is an operational safety layer — it catches mistakes, enforces approval workflows, and creates audit trails. For production environments, complement it with network egress policies, secret vaults, sandboxed execution, and DLP monitoring.
-
-## Also available
-
-- **[GouvernAI Plugin](https://github.com/Myr-Aya/GouvernAI-claude-code-plugin)** — Full dual-enforcement version with PreToolUse hooks (deterministic blocking) + this skill (linguistic classification). 85 unit tests. For Claude Code users who want both layers.
 
 ## License
 
@@ -140,3 +148,4 @@ MIT — see [LICENSE](LICENSE)
 **Website:** [gouvernai.ai](https://gouvernai.ai)
 
 ## Built by Myr-Aya, MindXO
+```
